@@ -1,0 +1,151 @@
+// Minimal Express backend for VacationVisits
+const path = require('path');
+const fs = require('fs');
+const express = require('express');
+const cors = require('cors');
+require('dotenv').config();
+
+const { nanoid } = require('nanoid');
+const { saveEnquiry, saveSearch, listEnquiries, listSearches, countEnquiries, countSearches, deleteEnquiry, deleteSearch } = require('./db');
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
+
+// Ensure data directory exists
+const dataDir = path.join(__dirname, 'data');
+if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir);
+
+async function initDb() {
+  // SQLite initialized in db.js on import
+}
+
+// Middleware
+app.use(cors());
+app.use(express.json());
+
+// Serve static frontend
+app.use(express.static(__dirname));
+
+// Deals catalog (server truth for special deals)
+const deals = {
+  'hyatt-special': {
+    id: 'hyatt-special',
+    title: 'October Hyatt Jumeirah Special',
+    travelMonth: 'October 2025',
+    pricing: [
+      { label: 'Double sharing', price: 55500 },
+      { label: 'Triple sharing', price: 51500 }
+    ],
+    inclusions: [
+      'Dubai Return Airport transfers & Internal hotel transfer',
+      'Marina Dhow Cruise with Dinner',
+      'Desert Safari with BBQ Dinner',
+      'Dubai Half Day City tour',
+      'Aqua Venture Water Park at Atlantis ticket with transfers',
+      'Burj Khalifa 124th Floor (Non-Peak Hours)',
+      'Abu Dhabi City Tour With Ferrari World with Dinner',
+      'Dubai VAT',
+      'All Taxes Except Tourism Dirham',
+      'All tours and Transfers on Private (PVT) Basis'
+    ],
+    optional: { label: 'Dubai Visa', price: 7000 }
+  },
+  'burj-khalifa': {
+    id: 'burj-khalifa',
+    title: 'Burj Khalifa Experience',
+    travelMonth: 'All Year',
+    pricing: [
+      { label: 'At the Top (Non-Peak)', price: 16500 },
+      { label: 'At the Top (Prime Hours)', price: 20500 }
+    ],
+    inclusions: [
+      'Skip-the-line access to At the Top (levels 124/125)',
+      'Panoramic views of Dubai skyline',
+      'Multimedia presentation about the history of Dubai and Burj Khalifa',
+      'Access to observation deck telescopes'
+    ]
+  }
+};
+
+// Routes
+app.get('/api/health', (_req, res) => res.json({ ok: true }));
+
+// Admin listing (basic, unauthenticated; add auth before exposing publicly)
+app.get('/api/admin/enquiries', (req, res) => {
+  const limit = Math.min(parseInt(req.query.limit || '50', 10), 200);
+  const offset = Math.max(parseInt(req.query.offset || '0', 10), 0);
+  res.json({ total: countEnquiries(), items: listEnquiries(limit, offset) });
+});
+
+app.get('/api/admin/searches', (req, res) => {
+  const limit = Math.min(parseInt(req.query.limit || '50', 10), 200);
+  const offset = Math.max(parseInt(req.query.offset || '0', 10), 0);
+  res.json({ total: countSearches(), items: listSearches(limit, offset) });
+});
+
+// Delete endpoints (basic, unauthenticated; protect before exposing)
+app.delete('/api/admin/enquiries/:id', (req, res) => {
+  const id = req.params.id;
+  try { deleteEnquiry(id); res.json({ ok: true }); } catch { res.status(400).json({ error: 'Failed to delete' }); }
+});
+app.delete('/api/admin/searches/:id', (req, res) => {
+  const id = req.params.id;
+  try { deleteSearch(id); res.json({ ok: true }); } catch { res.status(400).json({ error: 'Failed to delete' }); }
+});
+
+// Convenience GET routes to avoid DELETE issues in some environments
+app.get('/api/admin/enquiries/:id/delete', (req, res) => {
+  const id = req.params.id;
+  try { deleteEnquiry(id); res.json({ ok: true }); } catch { res.status(400).json({ error: 'Failed to delete' }); }
+});
+app.get('/api/admin/searches/:id/delete', (req, res) => {
+  const id = req.params.id;
+  try { deleteSearch(id); res.json({ ok: true }); } catch { res.status(400).json({ error: 'Failed to delete' }); }
+});
+
+// POST fallbacks for environments blocking DELETE/GET
+app.post('/api/admin/enquiries/delete', (req, res) => {
+  const id = req.body?.id;
+  if (!id) return res.status(400).json({ error: 'id required' });
+  try { deleteEnquiry(id); res.json({ ok: true }); } catch { res.status(400).json({ error: 'Failed to delete' }); }
+});
+app.post('/api/admin/searches/delete', (req, res) => {
+  const id = req.body?.id;
+  if (!id) return res.status(400).json({ error: 'id required' });
+  try { deleteSearch(id); res.json({ ok: true }); } catch { res.status(400).json({ error: 'Failed to delete' }); }
+});
+
+app.get('/api/deals/:id', (req, res) => {
+  const deal = deals[req.params.id];
+  if (!deal) return res.status(404).json({ error: 'Deal not found' });
+  res.json(deal);
+});
+
+app.post('/api/enquiries', async (req, res) => {
+  const { name, email, phone, destination, message } = req.body || {};
+  if (!name || !email || !phone || !destination || !message) {
+    return res.status(400).json({ error: 'Missing required fields' });
+  }
+  const record = { id: nanoid(), name, email, phone, destination, message, createdAt: new Date().toISOString() };
+  saveEnquiry(record);
+  res.status(201).json({ ok: true, id: record.id });
+});
+
+app.post('/api/searches', async (req, res) => {
+  const { query } = req.body || {};
+  if (!query) return res.status(400).json({ error: 'query is required' });
+  const record = { id: nanoid(), query, createdAt: new Date().toISOString() };
+  saveSearch(record);
+  res.status(201).json({ ok: true, id: record.id });
+});
+
+// Itinerary feature removed
+
+initDb().then(() => {
+  app.listen(PORT, () => {
+    console.log(`VacationVisits backend running on http://localhost:${PORT}`);
+  });
+});
+
+

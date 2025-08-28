@@ -1,0 +1,14 @@
+{
+  "enquiries": [
+    {
+      "id": "J4oIRxnyaYFYVf2dgvqHi",
+      "name": "Shivam",
+      "email": "Shivamgrover195@gmail.com",
+      "phone": "8802305433",
+      "destination": "Dubai",
+      "message": "Hello\n",
+      "createdAt": "2025-08-25T07:57:55.045Z"
+    }
+  ],
+  "searches": []
+}

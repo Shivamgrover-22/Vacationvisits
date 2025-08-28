@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin - VacationVisits</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;700&display=swap');
+        @media (prefers-color-scheme: dark) {
+            :root { color-scheme: dark; }
+        }
+        :root{
+            --primary:#1a76d2; --accent:#4ecdc4; --danger:#ff6b6b; --bg:#f5f7fb;
+        }
+        html,body{height:100%}
+        body { font-family: 'Poppins', Arial, sans-serif; margin:0; background: linear-gradient(180deg, #ffffff 0%, var(--bg) 100%); }
+        .topbar{position:sticky;top:0;background:#fff;border-bottom:1px solid #e9edf5;display:flex;align-items:center;justify-content:space-between;padding:14px 24px;z-index:10}
+        .title{font-size:20px;font-weight:700;color:#2d3436}
+        .chip{background:rgba(26,118,210,.08);color:var(--primary);padding:6px 10px;border-radius:999px;font-size:12px;margin-left:8px}
+        .container{max-width:1100px;margin:24px auto;padding:0 16px}
+        .controls{display:flex;gap:12px;align-items:center}
+        .btn{padding:10px 14px;border:none;border-radius:8px;background:var(--primary);color:#fff;cursor:pointer;transition:transform .06s ease, box-shadow .2s ease;box-shadow:0 6px 14px rgba(26,118,210,.18)}
+        .btn:hover{transform:translateY(-1px);box-shadow:0 10px 20px rgba(26,118,210,.2)}
+        .btn-outline{background:#fff;color:#2d3436;border:1px solid #e3e8f0}
+        .btn-danger{background:var(--danger);box-shadow:0 6px 14px rgba(255,107,107,.18)}
+        .grid{display:grid;grid-template-columns:1fr;gap:18px}
+        .card{background:#fff;border:1px solid #eef1f6;border-radius:14px;padding:18px 18px 10px;box-shadow:0 10px 24px rgba(0,0,0,.04)}
+        .card h2{margin:0 0 10px;font-size:18px;color:#1f2937;display:flex;align-items:center;gap:10px}
+        .subtitle{font-size:12px;color:#6b7280;margin-left:auto}
+        table{width:100%;border-collapse:separate;border-spacing:0 8px}
+        thead th{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:#6b7280;padding:10px 12px; text-align: left;}
+        tbody td{background:#fdfdff;border:1px solid #eef1f6;border-left:none;border-right:none;padding:12px; font-size: 14px; color: #333;}
+        tbody tr{border-radius:10px}
+        tbody tr:hover td{background:#f9fbff}
+        tbody td:first-child{border-left:1px solid #eef1f6;border-top-left-radius:10px;border-bottom-left-radius:10px}
+        tbody td:last-child{border-right:1px solid #eef1f6;border-top-right-radius:10px;border-bottom-right-radius:10px; text-align: right;}
+        .table-actions button{margin-left:6px}
+        .muted{color:#6b7280}
+        .pill{background:#eef7ff;color:#1a76d2;border-radius:999px;padding:4px 8px;font-size:11px; font-weight: 500;}
+        .inline-controls{display:flex;gap:10px;align-items:center;margin:8px 0 2px}
+        /* Error message styling */
+        #error-box {
+            display: none;
+            position: fixed;
+            top: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: var(--danger);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 1000;
+            font-size: 14px;
+        }
+    </style>
+    <script>
+        // Use same-origin when served by the backend on port 3000; otherwise point to backend
+        // --- FIXED: Correctly determine the protocol to avoid 'blob:' URL errors ---
+        const API_BASE = (location.port === '3000') ? '' : `${location.protocol === 'blob:' ? 'https:' : location.protocol}//${location.hostname}:3000`;
+
+        // --- NEW: Function to display errors to the user ---
+        function showError(message) {
+            const errorBox = document.getElementById('error-box');
+            errorBox.textContent = message;
+            errorBox.style.display = 'block';
+            // Hide the message after 5 seconds
+            setTimeout(() => {
+                errorBox.style.display = 'none';
+            }, 5000);
+        }
+
+        // --- NEW: Helper function to escape HTML special characters ---
+        // This prevents data with characters like '<' or '>' from breaking the HTML table structure.
+        function escapeHTML(str) {
+            if (str === null || str === undefined) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        async function fetchJson(url, opts) {
+            const res = await fetch(`${API_BASE}${url}`, opts);
+            if (!res.ok) {
+                const errorText = await res.text();
+                throw new Error(`Request failed: ${res.status} ${errorText}`);
+            }
+            return res.json();
+        }
+
+        async function del(url, id) {
+            // Try DELETE; then GET fallback; finally POST fallback
+            let res = await fetch(`${API_BASE}${url}`, { method: 'DELETE' });
+            if (!res.ok) res = await fetch(`${API_BASE}${url}/delete`, { method: 'GET' });
+            if (!res.ok) {
+                const postUrl = url.includes('enquiries') ? '/api/admin/enquiries/delete' : '/api/admin/searches/delete';
+                res = await fetch(`${API_BASE}${postUrl}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
+            }
+            if (!res.ok) throw new Error('Delete operation failed');
+        }
+
+        async function load() {
+            try {
+                const limit = parseInt(document.getElementById('limit').value, 10);
+                const [enquiries, searches] = await Promise.all([
+                    fetchJson(`/api/admin/enquiries?limit=${limit}`),
+                    fetchJson(`/api/admin/searches?limit=${limit}`)
+                ]);
+
+                document.getElementById('enquiries-total').textContent = enquiries.total;
+                document.getElementById('searches-total').textContent = searches.total;
+
+                const ebody = document.getElementById('enquiries-body');
+                // --- UPDATED: Use escapeHTML() for all dynamic data ---
+                ebody.innerHTML = enquiries.items.map(e => `
+                    <tr>
+                        <td class="muted">${escapeHTML(e.createdAt)}</td>
+                        <td>${escapeHTML(e.name)}</td>
+                        <td>${escapeHTML(e.email)}</td>
+                        <td>${escapeHTML(e.phone)}</td>
+                        <td>${escapeHTML(e.destination)}</td>
+                        <td>${escapeHTML(e.message)}</td>
+                        <td class="table-actions"><button data-id="${e.id}" class="btn btn-danger del-enquiry">Delete</button></td>
+                    </tr>
+                `).join('');
+
+                const sbody = document.getElementById('searches-body');
+                // --- UPDATED: Use escapeHTML() for all dynamic data ---
+                sbody.innerHTML = searches.items.map(s => `
+                    <tr>
+                        <td class="muted">${escapeHTML(s.createdAt)}</td>
+                        <td>${escapeHTML(s.query)}</td>
+                        <td class="table-actions"><button data-id="${s.id}" class="btn btn-danger del-search">Delete</button></td>
+                    </tr>
+                `).join('');
+
+                // Attach delete handlers
+                ebody.querySelectorAll('.del-enquiry').forEach(btn => {
+                    btn.addEventListener('click', async () => {
+                        // --- UPDATED: Use showError() instead of alert() ---
+                        try { 
+                            await del(`/api/admin/enquiries/${btn.dataset.id}`, btn.dataset.id); 
+                            load(); 
+                        } catch (e) { 
+                            showError('Failed to delete enquiry.'); 
+                            console.error(e);
+                        }
+                    });
+                });
+                sbody.querySelectorAll('.del-search').forEach(btn => {
+                    btn.addEventListener('click', async () => {
+                        // --- UPDATED: Use showError() instead of alert() ---
+                        try { 
+                            await del(`/api/admin/searches/${btn.dataset.id}`, btn.dataset.id); 
+                            load(); 
+                        } catch (e) { 
+                            showError('Failed to delete search.');
+                            console.error(e);
+                        }
+                    });
+                });
+            } catch (error) {
+                // --- NEW: Catch errors during loading and display them ---
+                showError(`Failed to load data: ${error.message}`);
+                console.error(error);
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('reload').addEventListener('click', load);
+            
+            document.getElementById('export-enquiries').addEventListener('click', async () => {
+                try {
+                    const data = await fetchJson(`/api/admin/enquiries?limit=1000`);
+                    const rows = [['createdAt','name','email','phone','destination','message'], ...data.items.map(e=>[e.createdAt,e.name,e.email,e.phone,e.destination,e.message])];
+                    const csv = rows.map(r=>r.map(x=>`"${String(x).replaceAll('"','""')}"`).join(',')).join('\n');
+                    const blob = new Blob([csv], {type:'text/csv'}); const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a'); a.href=url; a.download='enquiries.csv'; a.click(); URL.revokeObjectURL(url);
+                } catch(e) {
+                    showError('Failed to export enquiries.');
+                    console.error(e);
+                }
+            });
+
+            document.getElementById('export-searches').addEventListener('click', async () => {
+                try {
+                    const data = await fetchJson(`/api/admin/searches?limit=1000`);
+                    const rows = [['createdAt','query','id'], ...data.items.map(s=>[s.createdAt,s.query,s.id])];
+                    const csv = rows.map(r=>r.map(x=>`"${String(x).replaceAll('"','""')}"`).join(',')).join('\n');
+                    const blob = new Blob([csv], {type:'text/csv'}); const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a'); a.href=url; a.download='searches.csv'; a.click(); URL.revokeObjectURL(url);
+                } catch(e) {
+                    showError('Failed to export searches.');
+                    console.error(e);
+                }
+            });
+
+            load();
+        });
+    </script>
+    </head>
+<body>
+    <!-- NEW: Element to display error messages -->
+    <div id="error-box"></div>
+
+    <div class="topbar">
+        <div class="title">Admin Dashboard <span class="chip">Live</span></div>
+        <div class="controls">
+            <label class="inline-controls">Limit: <input id="limit" type="number" value="50" min="1" max="200" style="padding:8px;border:1px solid #e3e8f0;border-radius:8px;width:80px;margin-left:6px"/></label>
+            <button class="btn btn-outline" id="export-enquiries">Export Enquiries CSV</button>
+            <button class="btn btn-outline" id="export-searches">Export Searches CSV</button>
+            <button class="btn" id="reload">Reload</button>
+        </div>
+    </div>
+
+    <div class="container grid">
+        <div class="card">
+        <h2>Enquiries <span class="pill" id="enquiries-total">0</span> <span class="subtitle">Use responsibly; add auth before exposing publicly.</span></h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Created</th>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Phone</th>
+                    <th>Destination</th>
+                    <th>Message</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody id="enquiries-body"></tbody>
+        </table>
+        </div>
+
+        <div class="card">
+        <h2>Searches <span class="pill" id="searches-total">0</span></h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Created</th>
+                    <th>Query</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody id="searches-body"></tbody>
+        </table>
+        </div>
+    </div>
+</body>
+</html>

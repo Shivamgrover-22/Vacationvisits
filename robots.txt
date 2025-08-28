@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+
+# Block common admin or private paths if added later
+Disallow: /admin
+
+Sitemap: https://vacationvisits.in/sitemap.xml
+
+
