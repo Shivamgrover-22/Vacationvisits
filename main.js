@@ -88,9 +88,11 @@ document.addEventListener('DOMContentLoaded', function() {
     // Header scroll effect: hide on scroll down (mobile only), show on scroll up
     const mobileQuery = window.matchMedia('(max-width: 768px)');
     let lastScrollY = window.scrollY;
+    let ticking = false;
+    
     function handleScroll() {
         const currentY = window.scrollY;
-        const isScrollingDown = currentY > lastScrollY;
+        const isScrollingDown = currentY > lastScrollY && currentY > 10;
 
         // Always keep "scrolled" styling logic
         header.classList.toggle('scrolled', currentY > 100);
@@ -98,24 +100,38 @@ document.addEventListener('DOMContentLoaded', function() {
         // Only hide header on mobile screens
         if (mobileQuery.matches) {
             if (isScrollingDown && currentY > 50) {
-                header.classList.add('hide', 'absolute');
-            } else {
-                header.classList.remove('hide', 'absolute');
+                header.classList.add('hide');
+                header.classList.add('absolute');
+            } else if (currentY <= lastScrollY) {
+                header.classList.remove('hide');
+                header.classList.remove('absolute');
             }
         } else {
             // Ensure header is visible on larger screens
-            header.classList.remove('hide', 'absolute');
+            header.classList.remove('hide');
+            header.classList.remove('absolute');
         }
 
-        lastScrollY = currentY;
+        lastScrollY = currentY <= 0 ? 0 : currentY; // For Mobile or negative scrolling
+        ticking = false;
     }
-    window.addEventListener('scroll', handleScroll);
+    
+    function requestTick() {
+        if (!ticking) {
+            requestAnimationFrame(handleScroll);
+            ticking = true;
+        }
+    }
+    
+    window.addEventListener('scroll', requestTick);
+    
     // Re-evaluate when viewport changes
-    if (mobileQuery.addEventListener) {
-        mobileQuery.addEventListener('change', handleScroll);
-    } else if (mobileQuery.addListener) {
-        mobileQuery.addListener(handleScroll);
-    }
+    mobileQuery.addEventListener('change', function() {
+        if (!mobileQuery.matches) {
+            header.classList.remove('hide');
+            header.classList.remove('absolute');
+        }
+    });
 
     // Intersection animations
     const observer = new IntersectionObserver((entries) => {

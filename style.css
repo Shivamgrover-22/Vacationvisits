@@ -39,7 +39,8 @@ header.scrolled {
 
 /* Hide-on-scroll and absolute state */
 header.hide {
-    transform: translateY(-120%);
+    transform: translateY(-100%);
+    transition: transform 0.3s ease;
 }
 header.absolute {
     position: absolute;
