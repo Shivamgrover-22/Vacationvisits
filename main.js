@@ -85,9 +85,21 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Removed AI itinerary feature
 
-    // Header scroll effect
+    // Header scroll effect: hide on scroll down, show on scroll up
+    let lastScrollY = window.scrollY;
     window.addEventListener('scroll', function() {
-        header.classList.toggle('scrolled', window.scrollY > 100);
+        const currentY = window.scrollY;
+        const isScrollingDown = currentY > lastScrollY;
+
+        if (isScrollingDown && currentY > 50) {
+            header.classList.add('hide', 'absolute');
+        } else {
+            header.classList.remove('hide');
+            header.classList.remove('absolute');
+        }
+
+        header.classList.toggle('scrolled', currentY > 100);
+        lastScrollY = currentY;
     });
 
     // Intersection animations
