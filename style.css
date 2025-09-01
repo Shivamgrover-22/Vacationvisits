@@ -759,6 +759,15 @@ footer {
 }
 
 @media (max-width: 768px) {
+    .hero {
+        padding: 140px 0 80px; /* Reduced top padding for mobile to account for smaller navbar */
+    }
+    .hero h1 {
+        font-size: 2.4rem; /* Smaller heading on mobile */
+    }
+    .hero p {
+        font-size: 1.1rem; /* Smaller text on mobile */
+    }
     .search-box {
         flex-direction: column;
         border-radius: 15px;
@@ -774,6 +783,26 @@ footer {
     .logo img {
         height: 56px;
         width: 186px; /* Maintain aspect ratio for mobile */
+    }
+}
+
+/* Extra adjustments for very small mobile screens */
+@media (max-width: 480px) {
+    .hero {
+        padding: 120px 0 60px; /* Even less padding for small screens */
+    }
+    .hero h1 {
+        font-size: 2rem;
+    }
+    .hero p {
+        font-size: 1rem;
+        padding: 0 10px;
+    }
+    .nav-container {
+        padding: 8px 0; /* Smaller navbar padding on small screens */
+    }
+    header.scrolled .nav-container {
+        padding: 4px 0;
     }
 }
 
