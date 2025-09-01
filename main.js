@@ -85,22 +85,37 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Removed AI itinerary feature
 
-    // Header scroll effect: hide on scroll down, show on scroll up
+    // Header scroll effect: hide on scroll down (mobile only), show on scroll up
+    const mobileQuery = window.matchMedia('(max-width: 768px)');
     let lastScrollY = window.scrollY;
-    window.addEventListener('scroll', function() {
+    function handleScroll() {
         const currentY = window.scrollY;
         const isScrollingDown = currentY > lastScrollY;
 
-        if (isScrollingDown && currentY > 50) {
-            header.classList.add('hide', 'absolute');
+        // Always keep "scrolled" styling logic
+        header.classList.toggle('scrolled', currentY > 100);
+
+        // Only hide header on mobile screens
+        if (mobileQuery.matches) {
+            if (isScrollingDown && currentY > 50) {
+                header.classList.add('hide', 'absolute');
+            } else {
+                header.classList.remove('hide', 'absolute');
+            }
         } else {
-            header.classList.remove('hide');
-            header.classList.remove('absolute');
+            // Ensure header is visible on larger screens
+            header.classList.remove('hide', 'absolute');
         }
 
-        header.classList.toggle('scrolled', currentY > 100);
         lastScrollY = currentY;
-    });
+    }
+    window.addEventListener('scroll', handleScroll);
+    // Re-evaluate when viewport changes
+    if (mobileQuery.addEventListener) {
+        mobileQuery.addEventListener('change', handleScroll);
+    } else if (mobileQuery.addListener) {
+        mobileQuery.addListener(handleScroll);
+    }
 
     // Intersection animations
     const observer = new IntersectionObserver((entries) => {
