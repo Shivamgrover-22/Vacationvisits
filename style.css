@@ -759,8 +759,18 @@ footer {
 }
 
 @media (max-width: 768px) {
+    .nav-container {
+        padding: 6px 0; /* Reduced navbar padding for mobile */
+    }
+    header.scrolled .nav-container {
+        padding: 3px 0;
+    }
+    .logo img {
+        height: 48px; /* Smaller logo height for mobile */
+        width: 160px; /* Maintain aspect ratio for mobile */
+    }
     .hero {
-        padding: 140px 0 80px; /* Reduced top padding for mobile to account for smaller navbar */
+        padding: 110px 0 80px; /* Reduced top padding for mobile to account for smaller navbar */
     }
     .hero h1 {
         font-size: 2.4rem; /* Smaller heading on mobile */
@@ -780,16 +790,22 @@ footer {
     .search-box button {
         border-radius: 15px;
     }
-    .logo img {
-        height: 56px;
-        width: 186px; /* Maintain aspect ratio for mobile */
-    }
 }
 
 /* Extra adjustments for very small mobile screens */
 @media (max-width: 480px) {
+    .nav-container {
+        padding: 4px 0; /* Even smaller navbar padding on very small screens */
+    }
+    header.scrolled .nav-container {
+        padding: 2px 0;
+    }
+    .logo img {
+        height: 42px; /* Even smaller logo for very small screens */
+        width: 140px;
+    }
     .hero {
-        padding: 120px 0 60px; /* Even less padding for small screens */
+        padding: 100px 0 60px; /* Even less padding for very small screens */
     }
     .hero h1 {
         font-size: 2rem;
@@ -797,12 +813,6 @@ footer {
     .hero p {
         font-size: 1rem;
         padding: 0 10px;
-    }
-    .nav-container {
-        padding: 8px 0; /* Smaller navbar padding on small screens */
-    }
-    header.scrolled .nav-container {
-        padding: 4px 0;
     }
 }
 
