@@ -27,8 +27,23 @@ document.addEventListener('DOMContentLoaded', function() {
         return { card, title, desc, section, sectionName };
     });
 
-    // Use backend on same origin if served from Express, otherwise point to local server
-    const API_BASE = (location.port === '4000') ? '' : 'http://localhost:4000';
+    // Smart API base detection for both development and production
+    const API_BASE = (() => {
+        // If we're on the same origin as the backend (production or local dev)
+        if (location.hostname === 'vacationvisits.in' || location.hostname === 'www.vacationvisits.in') {
+            return ''; // Same origin - no need for full URL
+        }
+        // If we're on localhost with port 3000 (local development)
+        if (location.hostname === 'localhost' && location.port === '3000') {
+            return ''; // Same origin
+        }
+        // If we're on localhost but different port (file system access)
+        if (location.hostname === 'localhost') {
+            return 'http://localhost:3000'; // Point to backend
+        }
+        // Fallback for other cases
+        return '';
+    })();
 
     function showMessage(message, duration = 3000) {
         messageBox.textContent = message;

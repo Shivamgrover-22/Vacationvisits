@@ -20,8 +20,30 @@ async function initDb() {
   // SQLite initialized in db.js on import
 }
 
-// Middleware
-app.use(cors());
+// Middleware - CORS configuration for production and development
+const allowedOrigins = [
+  'https://vacationvisits.in',
+  'https://www.vacationvisits.in',
+  'http://localhost:3000', // Local development
+  'http://127.0.0.1:3000'  // Alternative localhost
+];
+
+app.use(cors({
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      console.log('CORS blocked origin:', origin);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+}));
 app.use(express.json());
 
 // Serve static frontend
@@ -143,8 +165,10 @@ app.post('/api/searches', async (req, res) => {
 // Itinerary feature removed
 
 initDb().then(() => {
-  app.listen(PORT, () => {
-    console.log(`VacationVisits backend running on http://localhost:${PORT}`);
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`VacationVisits backend running on http://0.0.0.0:${PORT}`);
+    console.log(`Local access: http://localhost:${PORT}`);
+    console.log(`Production ready: listening on all interfaces`);
   });
 });
 
