@@ -1,4 +1,4 @@
-// Minimal Express backend for VacationVisits
+// VacationVisits backend
 
 const path = require('path');
 const fs = require('fs');
@@ -19,7 +19,7 @@ const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
 const dataDir = path.join(__dirname, 'data');
 if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir);
 
-// CORS configuration for production and development
+// CORS configuration
 const allowedOrigins = [
     'https://vacationvisits.in',
     'https://www.vacationvisits.in',
@@ -44,13 +44,13 @@ app.use(cors({
 app.use(express.json());
 app.use(express.static(__dirname));
 
-// --- Health route with logging for troubleshooting ---
+// ------- Health route with logging --------
 app.get('/api/health', (_req, res) => {
     console.log('Health endpoint called');
     res.json({ ok: true });
 });
 
-// Deals catalog (server truth for special deals)
+// Main deals catalog
 const deals = {
     'hyatt-special': {
         id: 'hyatt-special',
@@ -91,7 +91,7 @@ const deals = {
     }
 };
 
-// Admin listing (basic, unauthenticated; add auth before exposing publicly)
+// Admin listing (basic, unauthenticated)
 app.get('/api/admin/enquiries', (req, res) => {
     const limit = Math.min(parseInt(req.query.limit || '50', 10), 200);
     const offset = Math.max(parseInt(req.query.offset || '0', 10), 0);
@@ -103,7 +103,7 @@ app.get('/api/admin/searches', (req, res) => {
     res.json({ total: countSearches(), items: listSearches(limit, offset) });
 });
 
-// Delete endpoints (basic, unauthenticated; protect before exposing)
+// Delete endpoints
 app.delete('/api/admin/enquiries/:id', (req, res) => {
     const id = req.params.id;
     try { deleteEnquiry(id); res.json({ ok: true }); } catch { res.status(400).json({ error: 'Failed to delete' }); }
@@ -113,7 +113,7 @@ app.delete('/api/admin/searches/:id', (req, res) => {
     try { deleteSearch(id); res.json({ ok: true }); } catch { res.status(400).json({ error: 'Failed to delete' }); }
 });
 
-// Convenience GET routes to avoid DELETE issues in some environments
+// Convenience GET routes for delete
 app.get('/api/admin/enquiries/:id/delete', (req, res) => {
     const id = req.params.id;
     try { deleteEnquiry(id); res.json({ ok: true }); } catch { res.status(400).json({ error: 'Failed to delete' }); }
@@ -123,7 +123,7 @@ app.get('/api/admin/searches/:id/delete', (req, res) => {
     try { deleteSearch(id); res.json({ ok: true }); } catch { res.status(400).json({ error: 'Failed to delete' }); }
 });
 
-// POST fallbacks for environments blocking DELETE/GET
+// POST fallbacks
 app.post('/api/admin/enquiries/delete', (req, res) => {
     const id = req.body?.id;
     if (!id) return res.status(400).json({ error: 'id required' });
@@ -159,7 +159,7 @@ app.post('/api/searches', (req, res) => {
     res.status(201).json({ ok: true, id: record.id });
 });
 
-// Start server on 0.0.0.0 for production/hosted environments
+// --- Start server ---
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`VacationVisits backend running on http://0.0.0.0:${PORT}`);
     console.log(`Local access: http://localhost:${PORT}`);
