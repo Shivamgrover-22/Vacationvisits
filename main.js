@@ -28,7 +28,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Use backend on same origin if served from Express, otherwise point to local server
-    const API_BASE = (location.port === '3000') ? '' : 'http://localhost:3000';
+    const API_BASE = (location.port === '4000') ? '' : 'http://localhost:4000';
 
     function showMessage(message, duration = 3000) {
         messageBox.textContent = message;
