@@ -1,4 +1,4 @@
-// VacationVisits backend (stable version)
+// Minimal Express backend for VacationVisits
 
 const path = require('path');
 const fs = require('fs');
@@ -13,14 +13,13 @@ const {
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
 
-// Ensure /data directory exists for file-based db.js
+// Ensure data directory exists
 const dataDir = path.join(__dirname, 'data');
 if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir);
 
-console.log("server.js: All modules imported.");
-
-// CORS configuration
+// CORS configuration for production and development
 const allowedOrigins = [
     'https://vacationvisits.in',
     'https://www.vacationvisits.in',
@@ -29,8 +28,8 @@ const allowedOrigins = [
 ];
 app.use(cors({
     origin: function (origin, callback) {
-        if (!origin) return callback(null, true); // allow non-browser requests (like curl)
-        if (allowedOrigins.includes(origin)) {
+        if (!origin) return callback(null, true);
+        if (allowedOrigins.indexOf(origin) !== -1) {
             callback(null, true);
         } else {
             console.log('CORS blocked origin:', origin);
@@ -45,83 +44,13 @@ app.use(cors({
 app.use(express.json());
 app.use(express.static(__dirname));
 
-// Health route
+// --- Health route with logging for troubleshooting ---
 app.get('/api/health', (_req, res) => {
-    console.log("GET /api/health called");
+    console.log('Health endpoint called');
     res.json({ ok: true });
 });
 
-// Admin listing routes (no auth - secure if using in production!)
-app.get('/api/admin/enquiries', (req, res) => {
-    const limit = Math.min(parseInt(req.query.limit || '50', 10), 200);
-    const offset = Math.max(parseInt(req.query.offset || '0', 10), 0);
-    res.json({ total: countEnquiries(), items: listEnquiries(limit, offset) });
-});
-app.get('/api/admin/searches', (req, res) => {
-    const limit = Math.min(parseInt(req.query.limit || '50', 10), 200);
-    const offset = Math.max(parseInt(req.query.offset || '0', 10), 0);
-    res.json({ total: countSearches(), items: listSearches(limit, offset) });
-});
-
-// Delete endpoints
-app.delete('/api/admin/enquiries/:id', (req, res) => {
-    try {
-        deleteEnquiry(req.params.id);
-        res.json({ ok: true });
-    } catch {
-        res.status(400).json({ error: 'Failed to delete' });
-    }
-});
-app.delete('/api/admin/searches/:id', (req, res) => {
-    try {
-        deleteSearch(req.params.id);
-        res.json({ ok: true });
-    } catch {
-        res.status(400).json({ error: 'Failed to delete' });
-    }
-});
-
-// Convenience GET routes for delete
-app.get('/api/admin/enquiries/:id/delete', (req, res) => {
-    try {
-        deleteEnquiry(req.params.id);
-        res.json({ ok: true });
-    } catch {
-        res.status(400).json({ error: 'Failed to delete' });
-    }
-});
-app.get('/api/admin/searches/:id/delete', (req, res) => {
-    try {
-        deleteSearch(req.params.id);
-        res.json({ ok: true });
-    } catch {
-        res.status(400).json({ error: 'Failed to delete' });
-    }
-});
-
-// POST fallbacks for environments blocking DELETE/GET
-app.post('/api/admin/enquiries/delete', (req, res) => {
-    const id = req.body?.id;
-    if (!id) return res.status(400).json({ error: 'id required' });
-    try {
-        deleteEnquiry(id);
-        res.json({ ok: true });
-    } catch {
-        res.status(400).json({ error: 'Failed to delete' });
-    }
-});
-app.post('/api/admin/searches/delete', (req, res) => {
-    const id = req.body?.id;
-    if (!id) return res.status(400).json({ error: 'id required' });
-    try {
-        deleteSearch(id);
-        res.json({ ok: true });
-    } catch {
-        res.status(400).json({ error: 'Failed to delete' });
-    }
-});
-
-// Deals catalog (server-side truth)
+// Deals catalog (server truth for special deals)
 const deals = {
     'hyatt-special': {
         id: 'hyatt-special',
@@ -162,48 +91,75 @@ const deals = {
     }
 };
 
+// Admin listing (basic, unauthenticated; add auth before exposing publicly)
+app.get('/api/admin/enquiries', (req, res) => {
+    const limit = Math.min(parseInt(req.query.limit || '50', 10), 200);
+    const offset = Math.max(parseInt(req.query.offset || '0', 10), 0);
+    res.json({ total: countEnquiries(), items: listEnquiries(limit, offset) });
+});
+app.get('/api/admin/searches', (req, res) => {
+    const limit = Math.min(parseInt(req.query.limit || '50', 10), 200);
+    const offset = Math.max(parseInt(req.query.offset || '0', 10), 0);
+    res.json({ total: countSearches(), items: listSearches(limit, offset) });
+});
+
+// Delete endpoints (basic, unauthenticated; protect before exposing)
+app.delete('/api/admin/enquiries/:id', (req, res) => {
+    const id = req.params.id;
+    try { deleteEnquiry(id); res.json({ ok: true }); } catch { res.status(400).json({ error: 'Failed to delete' }); }
+});
+app.delete('/api/admin/searches/:id', (req, res) => {
+    const id = req.params.id;
+    try { deleteSearch(id); res.json({ ok: true }); } catch { res.status(400).json({ error: 'Failed to delete' }); }
+});
+
+// Convenience GET routes to avoid DELETE issues in some environments
+app.get('/api/admin/enquiries/:id/delete', (req, res) => {
+    const id = req.params.id;
+    try { deleteEnquiry(id); res.json({ ok: true }); } catch { res.status(400).json({ error: 'Failed to delete' }); }
+});
+app.get('/api/admin/searches/:id/delete', (req, res) => {
+    const id = req.params.id;
+    try { deleteSearch(id); res.json({ ok: true }); } catch { res.status(400).json({ error: 'Failed to delete' }); }
+});
+
+// POST fallbacks for environments blocking DELETE/GET
+app.post('/api/admin/enquiries/delete', (req, res) => {
+    const id = req.body?.id;
+    if (!id) return res.status(400).json({ error: 'id required' });
+    try { deleteEnquiry(id); res.json({ ok: true }); } catch { res.status(400).json({ error: 'Failed to delete' }); }
+});
+app.post('/api/admin/searches/delete', (req, res) => {
+    const id = req.body?.id;
+    if (!id) return res.status(400).json({ error: 'id required' });
+    try { deleteSearch(id); res.json({ ok: true }); } catch { res.status(400).json({ error: 'Failed to delete' }); }
+});
+
 app.get('/api/deals/:id', (req, res) => {
     const deal = deals[req.params.id];
     if (!deal) return res.status(404).json({ error: 'Deal not found' });
     res.json(deal);
 });
 
-// Enquiries API
 app.post('/api/enquiries', (req, res) => {
-    console.log('POST /api/enquiries called', req.body);
     const { name, email, phone, destination, message } = req.body || {};
     if (!name || !email || !phone || !destination || !message) {
         return res.status(400).json({ error: 'Missing required fields' });
     }
-    const record = {
-        id: nanoid(),
-        name, email, phone, destination, message,
-        createdAt: new Date().toISOString()
-    };
-    try {
-        saveEnquiry(record);
-        res.status(201).json({ ok: true, id: record.id });
-    } catch (e) {
-        console.log('Error saving enquiry:', e);
-        res.status(500).json({ error: 'Failed to save enquiry' });
-    }
+    const record = { id: nanoid(), name, email, phone, destination, message, createdAt: new Date().toISOString() };
+    saveEnquiry(record);
+    res.status(201).json({ ok: true, id: record.id });
 });
 
-// Searches API
 app.post('/api/searches', (req, res) => {
     const { query } = req.body || {};
     if (!query) return res.status(400).json({ error: 'query is required' });
     const record = { id: nanoid(), query, createdAt: new Date().toISOString() };
-    try {
-        saveSearch(record);
-        res.status(201).json({ ok: true, id: record.id });
-    } catch (e) {
-        console.log('Error saving search:', e);
-        res.status(500).json({ error: 'Failed to save search' });
-    }
+    saveSearch(record);
+    res.status(201).json({ ok: true, id: record.id });
 });
 
-// Start the server
+// Start server on 0.0.0.0 for production/hosted environments
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`VacationVisits backend running on http://0.0.0.0:${PORT}`);
     console.log(`Local access: http://localhost:${PORT}`);
