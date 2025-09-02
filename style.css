@@ -760,6 +760,43 @@ footer {
 }
 
 @media (max-width: 768px) {
+    body {
+        font-size: 14px;
+        padding: 10px;
+    }
+    header, nav, section, footer {
+        padding: 10px;
+    }
+    .container {
+        padding: 0 12px;
+    }
+    .nav-menu {
+        flex-wrap: wrap;
+        gap: 5px 10px;
+    }
+    .section-title {
+        margin: 50px 0 30px;
+    }
+    .section-title h2 {
+        font-size: 1.8rem;
+    }
+    .destinations {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+    .destination-card .card-content .btn {
+        margin-top: 20px;
+    }
+}
+
+/* Safety: prevent horizontal overflow on small screens */
+@media (max-width: 768px) {
+    html, body, header, nav, section, footer, .container {
+        max-width: 100%;
+        overflow-x: hidden;
+    }
+}
+@media (max-width: 768px) {
     .nav-container {
         padding: 6px 0; /* Reduced navbar padding for mobile */
     }

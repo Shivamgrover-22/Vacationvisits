@@ -27,8 +27,8 @@ document.addEventListener('DOMContentLoaded', function() {
         return { card, title, desc, section, sectionName };
     });
 
-    // Use backend on same origin if served from Express, otherwise point to local server
-    const API_BASE = (location.port === '3000') ? '' : 'http://localhost:3000';
+    // Use relative path so it works on production hosting and local dev
+    const API_BASE = "";
 
     function showMessage(message, duration = 3000) {
         messageBox.textContent = message;
