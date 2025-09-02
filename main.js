@@ -1,4 +1,4 @@
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     const header = document.getElementById('header');
     const searchBtn = document.getElementById('search-btn');
     const searchInput = document.getElementById('search-input');
@@ -41,27 +41,19 @@ document.addEventListener('DOMContentLoaded', function() {
     })();
 
     function showMessage(message, duration = 3000) {
+        if (!messageBox) return;
         messageBox.textContent = message;
         messageBox.classList.add('show');
-        setTimeout(() => {
-            messageBox.classList.remove('show');
-        }, duration);
+        setTimeout(() => { messageBox.classList.remove('show'); }, duration);
     }
-
-    function openModal(modal) {
-        modal.classList.add('active');
-    }
-
-    function closeModal(modal) {
-        modal.classList.remove('active');
-    }
+    function openModal(modal) { if (modal) modal.classList.add('active'); }
+    function closeModal(modal) { if (modal) modal.classList.remove('active'); }
 
     function clearSearchResults() {
         if (!searchResults) return;
         searchResults.innerHTML = '';
         searchResults.classList.remove('visible');
     }
-
     function renderSearchResults(items) {
         if (!searchResults) return;
         if (!items.length) {
@@ -78,7 +70,7 @@ document.addEventListener('DOMContentLoaded', function() {
         searchResults.querySelectorAll('.search-item').forEach(el => {
             el.addEventListener('click', () => {
                 const idx = parseInt(el.getAttribute('data-idx'));
-                const it = items[idx] || items[0];
+                const it = items[idx] || items;
                 if (it && it.card) {
                     const y = it.card.getBoundingClientRect().top + window.scrollY - 80;
                     window.scrollTo({ top: y, behavior: 'smooth' });
@@ -87,13 +79,9 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
     }
-
     function performSearch(term) {
         const q = term.trim().toLowerCase();
-        if (!q) {
-            clearSearchResults();
-            return [];
-        }
+        if (!q) { clearSearchResults(); return []; }
         const results = [];
         for (let i = 0; i < searchIndex.length; i++) {
             const it = searchIndex[i];
@@ -106,112 +94,97 @@ document.addEventListener('DOMContentLoaded', function() {
         return results;
     }
 
+    // Header scroll effect: hide on scroll down (mobile only), show on scroll up
     const mobileQuery = window.matchMedia('(max-width: 768px)');
     let lastScrollY = window.scrollY;
     let ticking = false;
-
     function handleScroll() {
         const currentY = window.scrollY;
         const isScrollingDown = currentY > lastScrollY && currentY > 10;
-
-        header.classList.toggle('scrolled', currentY > 100);
-
+        if (header) header.classList.toggle('scrolled', currentY > 100);
         if (mobileQuery.matches) {
-            if (isScrollingDown && currentY > 50) {
-                header.classList.add('hide');
-                header.classList.add('absolute');
-            } else if (currentY <= lastScrollY) {
-                header.classList.remove('hide');
-                header.classList.remove('absolute');
+            if (header) {
+                if (isScrollingDown && currentY > 50) {
+                    header.classList.add('hide');
+                    header.classList.add('absolute');
+                } else if (currentY <= lastScrollY) {
+                    header.classList.remove('hide');
+                    header.classList.remove('absolute');
+                }
             }
-        } else {
+        } else if (header) {
             header.classList.remove('hide');
             header.classList.remove('absolute');
         }
-
         lastScrollY = currentY <= 0 ? 0 : currentY;
         ticking = false;
     }
-
     function requestTick() {
         if (!ticking) {
             requestAnimationFrame(handleScroll);
             ticking = true;
         }
     }
-
     window.addEventListener('scroll', requestTick);
-
-    mobileQuery.addEventListener('change', function() {
-        if (!mobileQuery.matches) {
+    mobileQuery.addEventListener('change', function () {
+        if (!mobileQuery.matches && header) {
             header.classList.remove('hide');
             header.classList.remove('absolute');
         }
     });
 
+    // Intersection animations
     const observer = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-            if (entry.isIntersecting) entry.target.classList.add('active');
-        });
+        entries.forEach(entry => { if (entry.isIntersecting) entry.target.classList.add('active'); });
     }, { threshold: 0.1 });
-
     animatedElements.forEach(element => observer.observe(element));
 
+    // Smooth anchor scroll + enquiry modal
     document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-        anchor.addEventListener('click', function(e) {
+        anchor.addEventListener('click', function (e) {
             e.preventDefault();
             const targetId = this.getAttribute('href');
             if (targetId === '#') return;
             const targetElement = document.querySelector(targetId);
             if (targetElement) {
-                if (targetId === '#enquiry') {
-                    openModal(enquiryModal);
-                } else {
-                    window.scrollTo({ top: targetElement.offsetTop - 80, behavior: 'smooth' });
-                }
+                if (targetId === '#enquiry') { openModal(enquiryModal); }
+                else { window.scrollTo({ top: targetElement.offsetTop - 80, behavior: 'smooth' }); }
             }
         });
     });
 
-    if (searchBtn && searchInput) {
-        searchBtn.addEventListener('click', async function() {
-            const searchTerm = searchInput.value.trim();
-            if (searchTerm) {
-                showMessage(`Searching for: ${searchTerm}`);
-                try {
-                    await fetch(`${API_BASE}/api/searches`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({ query: searchTerm })
-                    });
-                } catch {}
-                const results = performSearch(searchTerm);
-                if (results.length && results[0].card) {
-                    const y = results[0].card.getBoundingClientRect().top + window.scrollY - 80;
-                    window.scrollTo({ top: y, behavior: 'smooth' });
-                }
-            } else {
-                showMessage('Please enter a search term');
+    // Search button
+    if (searchBtn && searchInput) searchBtn.addEventListener('click', async function () {
+        const searchTerm = searchInput.value.trim();
+        if (searchTerm) {
+            showMessage(`Searching for: ${searchTerm}`);
+            try {
+                await fetch(`${API_BASE}/api/searches`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query: searchTerm }) });
+            } catch (err) {
+                showMessage('Search request failed.');
+                console.error(err);
             }
-        });
-    }
-
+            const results = performSearch(searchTerm);
+            if (results.length && results.card) {
+                const y = results.card.getBoundingClientRect().top + window.scrollY - 80;
+                window.scrollTo({ top: y, behavior: 'smooth' });
+            }
+        } else { showMessage('Please enter a search term'); }
+    });
+    // Live search
     if (searchInput && searchResults) {
-        searchInput.addEventListener('input', function() {
+        searchInput.addEventListener('input', function () {
             const term = searchInput.value;
-            if (term && term.length >= 2) performSearch(term);
-            else clearSearchResults();
+            if (term && term.length >= 2) performSearch(term); else clearSearchResults();
         });
-
-        document.addEventListener('click', function(e) {
+        document.addEventListener('click', function (e) {
             if (!searchResults.contains(e.target) && e.target !== searchInput) clearSearchResults();
         });
     }
 
+    // Deals / enquiry buttons
     document.querySelectorAll('.view-deal-btn, #book-now-btn, .enquiry-link').forEach(button => {
-        button.addEventListener('click', function(e) {
+        button.addEventListener('click', function (e) {
             e.preventDefault();
             const destination = this.getAttribute('data-destination');
             const dealId = this.getAttribute('data-deal');
@@ -221,29 +194,32 @@ document.addEventListener('DOMContentLoaded', function() {
                         const res = await fetch(`${API_BASE}/api/deals/${dealId}`);
                         if (!res.ok) throw new Error('Deal not found');
                         const deal = await res.json();
-                        dealTitle.innerText = deal.title || 'Deal Details';
-                        const priceLines = (deal.pricing || []).map(p => `<li><strong>₹${p.price.toLocaleString('en-IN')}/-</strong> ${p.label}</li>`).join('');
-                        const incLines = (deal.inclusions || []).map(i => `<li>${i}</li>`).join('');
-                        const optional = deal.optional ? `<h4>Optional Cost:</h4><p>${deal.optional.label}: <strong>₹${deal.optional.price.toLocaleString('en-IN')}/-</strong> per person</p>` : '';
-                        dealContent.innerHTML = `
-                            <h4>Travel Month:</h4>
-                            <p><strong>${deal.travelMonth || ''}</strong></p>
-                            <h4>Pricing:</h4>
-                            <ul>${priceLines}</ul>
-                            <h4>Inclusions:</h4>
-                            <ul>${incLines}</ul>
-                            ${optional}
-                        `;
+                        if (dealTitle) dealTitle.innerText = deal.title || 'Deal Details';
+                        if (dealContent) {
+                            const priceLines = (deal.pricing || []).map(p => `<li><strong>₹${p.price.toLocaleString('en-IN')}/-</strong> ${p.label}</li>`).join('');
+                            const incLines = (deal.inclusions || []).map(i => `<li>${i}</li>`).join('');
+                            const optional = deal.optional ? `<h4>Optional Cost:</h4><p>${deal.optional.label}: <strong>₹${deal.optional.price.toLocaleString('en-IN')}/-</strong> per person</p>` : '';
+                            dealContent.innerHTML = `
+                                <h4>Travel Month:</h4>
+                                <p><strong>${deal.travelMonth || ''}</strong></p>
+                                <h4>Pricing:</h4>
+                                <ul>${priceLines}</ul>
+                                <h4>Inclusions:</h4>
+                                <ul>${incLines}</ul>
+                                ${optional}
+                            `;
+                        }
                         openModal(dealModal);
                     } catch (err) {
-                        dealTitle.innerText = 'Deal Details';
-                        dealContent.innerHTML = '<p>Deal details unavailable right now.</p>';
+                        if (dealTitle) dealTitle.innerText = 'Deal Details';
+                        if (dealContent) dealContent.innerHTML = '<p>Deal details unavailable right now.</p>';
                         openModal(dealModal);
                     }
                 })();
             } else {
-                if (destination) {
-                    enquiryForm.querySelector('#destination').value = destination;
+                if (destination && enquiryForm) {
+                    const destInput = enquiryForm.querySelector('#destination');
+                    if (destInput) destInput.value = destination;
                 }
                 openModal(enquiryModal);
             }
@@ -252,19 +228,18 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const visaBtn = document.getElementById('visa-info-btn');
     if (visaBtn) {
-        visaBtn.addEventListener('click', function() {
+        visaBtn.addEventListener('click', function () {
             showMessage('Our visa services include documentation, submission, and embassy follow-ups.');
         });
     }
 
     document.querySelectorAll('.modal-overlay').forEach(modal => {
-        modal.querySelector('.close-modal').addEventListener('click', () => closeModal(modal));
-        modal.addEventListener('click', function(e) {
-            if (e.target === modal) closeModal(modal);
-        });
+        const closeBtn = modal.querySelector('.close-modal');
+        if (closeBtn) closeBtn.addEventListener('click', () => closeModal(modal));
+        modal.addEventListener('click', function (e) { if (e.target === modal) closeModal(modal); });
     });
 
-    enquiryForm.addEventListener('submit', async function(e) {
+    if (enquiryForm) enquiryForm.addEventListener('submit', async function (e) {
         e.preventDefault();
         const formData = new FormData(enquiryForm);
         const payload = Object.fromEntries(formData.entries());
@@ -274,18 +249,21 @@ document.addEventListener('DOMContentLoaded', function() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
-            if (!res.ok) throw new Error('Failed');
+            if (!res.ok) {
+                const errText = await res.text();
+                throw new Error(`Failed (${res.status}): ${errText}`);
+            }
             showMessage('Thank you! We will contact you shortly.');
             enquiryForm.reset();
             setTimeout(() => closeModal(enquiryModal), 500);
         } catch (err) {
             showMessage('Could not submit right now. Please try again.');
+            console.error('Enquiry submission error:', err);
         }
     });
 
     if (location.hash === '#enquiry') {
         openModal(enquiryModal);
     }
-
     setTimeout(() => openModal(enquiryModal), 5000);
 });
