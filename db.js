@@ -3,55 +3,83 @@ const fs = require('fs');
 const Database = require('better-sqlite3');
 
 const dataDir = path.join(__dirname, 'data');
-if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir);
-const dbPath = path.join(dataDir, 'app.db');
+if (!fs.existsSync(dataDir)) {
+    fs.mkdirSync(dataDir);
+}
 
+const dbPath = path.join(dataDir, 'vacationvisits.db');
 const db = new Database(dbPath);
-db.pragma('journal_mode = WAL');
 
+// Create tables if they don't exist
 db.exec(`
-CREATE TABLE IF NOT EXISTS enquiries (
-  id TEXT PRIMARY KEY,
-  name TEXT NOT NULL,
-  email TEXT NOT NULL,
-  phone TEXT NOT NULL,
-  destination TEXT NOT NULL,
-  message TEXT NOT NULL,
-  createdAt TEXT NOT NULL
-);
-CREATE TABLE IF NOT EXISTS searches (
-  id TEXT PRIMARY KEY,
-  query TEXT NOT NULL,
-  createdAt TEXT NOT NULL
-);
+  CREATE TABLE IF NOT EXISTS enquiries (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    email TEXT NOT NULL,
+    phone TEXT NOT NULL,
+    destination TEXT NOT NULL,
+    message TEXT NOT NULL,
+    createdAt TEXT NOT NULL
+  );
 `);
 
-const insertEnquiry = db.prepare(`INSERT INTO enquiries (id, name, email, phone, destination, message, createdAt) VALUES (@id, @name, @email, @phone, @destination, @message, @createdAt)`);
-const insertSearch = db.prepare(`INSERT INTO searches (id, query, createdAt) VALUES (@id, @query, @createdAt)`);
-const selectEnquiries = db.prepare(`SELECT * FROM enquiries ORDER BY datetime(createdAt) DESC LIMIT ? OFFSET ?`);
-const selectSearches = db.prepare(`SELECT * FROM searches ORDER BY datetime(createdAt) DESC LIMIT ? OFFSET ?`);
-const countEnquiries = db.prepare(`SELECT COUNT(1) as c FROM enquiries`);
-const countSearches = db.prepare(`SELECT COUNT(1) as c FROM searches`);
-const deleteEnquiryStmt = db.prepare(`DELETE FROM enquiries WHERE id = ?`);
-const deleteSearchStmt = db.prepare(`DELETE FROM searches WHERE id = ?`);
+db.exec(`
+  CREATE TABLE IF NOT EXISTS searches (
+    id TEXT PRIMARY KEY,
+    query TEXT NOT NULL,
+    createdAt TEXT NOT NULL
+  );
+`);
+
+// Prepare statements for reuse
+const insertEnquiry = db.prepare('INSERT INTO enquiries (id, name, email, phone, destination, message, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?)');
+const insertSearch = db.prepare('INSERT INTO searches (id, query, createdAt) VALUES (?, ?, ?)');
+const listAllEnquiries = db.prepare('SELECT * FROM enquiries ORDER BY createdAt DESC LIMIT ? OFFSET ?');
+const listAllSearches = db.prepare('SELECT * FROM searches ORDER BY createdAt DESC LIMIT ? OFFSET ?');
+const countAllEnquiries = db.prepare('SELECT COUNT(*) AS count FROM enquiries');
+const countAllSearches = db.prepare('SELECT COUNT(*) AS count FROM searches');
+const deleteEnquiryById = db.prepare('DELETE FROM enquiries WHERE id = ?');
+const deleteSearchById = db.prepare('DELETE FROM searches WHERE id = ?');
 
 function saveEnquiry(record) {
-  insertEnquiry.run(record);
+    insertEnquiry.run(record.id, record.name, record.email, record.phone, record.destination, record.message, record.createdAt);
 }
 
 function saveSearch(record) {
-  insertSearch.run(record);
+    insertSearch.run(record.id, record.query, record.createdAt);
+}
+
+function listEnquiries(limit = 50, offset = 0) {
+    return listAllEnquiries.all(limit, offset);
+}
+
+function listSearches(limit = 50, offset = 0) {
+    return listAllSearches.all(limit, offset);
+}
+
+function countEnquiries() {
+    return countAllEnquiries.get().count;
+}
+
+function countSearches() {
+    return countAllSearches.get().count;
+}
+
+function deleteEnquiry(id) {
+    deleteEnquiryById.run(id);
+}
+
+function deleteSearch(id) {
+    deleteSearchById.run(id);
 }
 
 module.exports = {
-  saveEnquiry,
-  saveSearch,
-  listEnquiries: (limit = 50, offset = 0) => selectEnquiries.all(limit, offset),
-  listSearches: (limit = 50, offset = 0) => selectSearches.all(limit, offset),
-  countEnquiries: () => countEnquiries.get().c,
-  countSearches: () => countSearches.get().c,
-  deleteEnquiry: (id) => deleteEnquiryStmt.run(id),
-  deleteSearch: (id) => deleteSearchStmt.run(id),
+    saveEnquiry,
+    saveSearch,
+    listEnquiries,
+    listSearches,
+    countEnquiries,
+    countSearches,
+    deleteEnquiry,
+    deleteSearch,
 };
-
-
